@@ -1,4 +1,4 @@
-from typing import Any, Optional, List, Dict
+from typing import Any, Optional, List, Dict, Union
 import httpx
 from mcp.server.fastmcp import FastMCP
 import uuid
@@ -205,7 +205,9 @@ async def get_transport_modes() -> List[Dict[str, Any]]:
             raise ValueError(f"Failed to fetch transport modes: {e}")
 
 @mcp.tool()
-async def create_custom_itinerary(itinerary_data_json: str) -> Dict[str, Any]:
+async def create_custom_itinerary(
+    itinerary_data_json: Union[str, Dict[str, Any]]
+) -> Dict[str, Any]:
     """
     Creates a new custom travel itinerary from scratch based on the provided JSON data. Also used for saving modifications based on a recommended itinerary.
 
@@ -237,81 +239,7 @@ async def create_custom_itinerary(itinerary_data_json: str) -> Dict[str, Any]:
     **Important:** Always use the fetching tools to get correct, current UUIDs. Do not guess IDs.
 
     Args:
-        itinerary_data_json: A JSON string representing the complete itinerary details.
-
- JSON DATA STRUCTURE GUIDE:
-    - traveler_name: String - Name of the traveler
-    - start_date: String - Date in YYYY-MM-DD format
-    - nights: Integer - Number of nights (minimum 1)
-    - meta: Object - Additional metadata
-      - purpose: String - Purpose of travel (e.g., "Vacation", "Business")
-      - budget: Number - Budget amount
-    - days: Array - List of itinerary day objects
-      - day_number: Integer - Sequential day number
-      - date: String - Date in YYYY-MM-DD format
-      - notes: String - Optional notes for this day
-      - hotel_stay: Object or null - Hotel details if staying overnight
-        - hotel_id: String - UUID of hotel
-        - check_in_time: String - Check-in time in HH:MM:SS format
-      - activities: Array - List of activities for this day
-        - activity_id: String - UUID of activity
-        - timeslot: String - Time slot (Morning, Afternoon, or Evening)
-      - transfers: Array - List of transfers on this day
-        - mode_id: String - UUID of transport mode
-        - from_location_id: String - UUID of departure location
-        - to_location_id: String - UUID of destination location
-        - departure_time: String - Departure time in HH:MM:SS format
-    
-    IMPORTANT: When generating the JSON, do NOT include any comments or annotations within the JSON structure.
-    All property names must be valid JSON keys without explanation comments.
-    
-    Expected JSON payload format:
-    this is expected format only any of the value cant be taken if from here automatically:
-    dates are just exapmles nothing more
-    ```json
-    {
-      "traveler_name": "NAME",
-      "start_date": "2024-09-15",
-      "nights": 1,
-      "meta": {
-        "purpose": "Vacation",
-        "budget": 5000
-      },
-      "days": [
-        {
-          "day_number": 1,
-          "date": "2024-09-15",
-          "notes": "Arrival and check-in",
-          "hotel_stay": {
-            "hotel_id": "UUID-HOTEL",
-            "check_in_time": "14:00:00"
-          },
-          "activities": [
-            {
-              "activity_id": "UUID-ACTIVITY",
-              "timeslot": "Evening"
-            }
-          ],
-          "transfers": []
-        },
-        {
-          "day_number": 2,
-          "date": "2024-09-16",
-          "notes": "Departure",
-          "hotel_stay": null,
-          "activities": [],
-          "transfers": [
-            {
-              "mode_id": "UUID-TRANSPORT",
-              "from_location_id": "UUID-LOCATION_FROM",
-              "to_location_id": "UUID-LOCATION_TO",
-              "departure_time": "10:00:00"
-            }
-          ]
-        }
-      ]
-    }
-    ```
+        itinerary_data_json: A JSON string or dictionary representing the complete itinerary details.
 
     Returns:
         A dictionary representing the created itinerary if successful, including its new ID.
@@ -319,43 +247,58 @@ async def create_custom_itinerary(itinerary_data_json: str) -> Dict[str, Any]:
     """
     logger.info("MCP: Received request to create custom itinerary.")
     try:
-        # Parse the JSON to validate it
-        itinerary_data = json.loads(itinerary_data_json)
-        # Note: We're not using ItineraryCreate.model_validate here anymore
-        # since we're forwarding the JSON directly to the API
-    except json.JSONDecodeError as e:
-        logger.error(f"MCP: Invalid JSON provided: {e}")
-        return {"error": f"Invalid JSON format: {e}"}
+        # Convert dictionary to JSON string if necessary
+        if isinstance(itinerary_data_json, dict):
+            itinerary_data_json = json.dumps(itinerary_data_json)
+
+        # Parse the JSON string to validate it and convert to dict
+        try:
+            itinerary_data = json.loads(itinerary_data_json)
+        except json.JSONDecodeError as e:
+            logger.error(f"MCP: Invalid JSON provided: {e}")
+            return {"error": f"Invalid JSON format: {e}"}
     
-    # Use httpx to make a POST request to the API endpoint
-    try:
-        # Use localhost:8000 or appropriate server URL
-        api_url = "http://localhost:8000/api/v1/itineraries"
-        
-        # Make the POST request with the JSON data
-        async with httpx.AsyncClient() as client:
-            response = await client.post(
-                api_url,
-                json=itinerary_data,  # Send the parsed JSON as the request body
-                timeout=30.0  # Set an appropriate timeout
-            )
+        # Use httpx to make a POST request to the API endpoint
+        try:
+            # Use localhost:8000 or appropriate server URL
+            api_url = "http://localhost:8000/api/v1/itineraries"
             
-            # Check if the request was successful
-            if response.status_code == 201:  # 201 Created
-                logger.info("MCP: Successfully created itinerary via API")
-                return response.json()
-            else:
-                logger.error(f"MCP: API returned error {response.status_code}: {response.text}")
-                return {
-                    "error": f"API error ({response.status_code}): {response.text}",
-                    "details": response.json() if response.headers.get("content-type") == "application/json" else None
-                }
-    except httpx.RequestError as e:
-        logger.error(f"MCP: HTTP request error: {e}")
-        return {"error": f"Failed to connect to API: {e}"}
+            # Make the POST request with the JSON data
+            async with httpx.AsyncClient() as client:
+                response = await client.post(
+                    api_url,
+                    json=itinerary_data,  # Send the parsed JSON as the request body
+                    timeout=30.0  # Set an appropriate timeout
+                )
+                
+                # Check if the request was successful
+                if response.status_code == 201:  # 201 Created
+                    logger.info("MCP: Successfully created itinerary via API")
+                    return response.json()
+                else:
+                    logger.error(f"MCP: API returned error {response.status_code}: {response.text}")
+                    return {
+                        "error": f"API error ({response.status_code}): {response.text}",
+                        "details": response.json() if response.headers.get("content-type") == "application/json" else None
+                    }
+        except httpx.RequestError as e:
+            logger.error(f"MCP: HTTP request error: {e}")
+            return {"error": f"Failed to connect to API: {e}"}
+        except Exception as e:
+            logger.error(f"MCP: Unexpected error creating itinerary: {e}", exc_info=True)
+            return {"error": f"Unexpected error: {e}"}
     except Exception as e:
-        logger.error(f"MCP: Unexpected error creating itinerary: {e}", exc_info=True)
-        return {"error": f"Unexpected error: {e}"}
+        logger.error(f"MCP: Error processing itinerary data: {e}", exc_info=True)
+        return {"error": f"Error processing itinerary data: {e}"}
+
+@mcp.tool()
+async def create_custom_itinerary_from_dict(itinerary_data: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Creates a new custom travel itinerary from a dictionary object.
+    """
+    # Convert the dictionary to a JSON string before calling create_custom_itinerary
+    json_string = json.dumps(itinerary_data)
+    return await create_custom_itinerary(json_string)
 
 @mcp.tool()
 async def get_recommended_itinerary(

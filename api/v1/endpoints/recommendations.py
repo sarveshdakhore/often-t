@@ -1,10 +1,11 @@
 import logging
-from fastapi import APIRouter, HTTPException, status, Query
+from fastapi import APIRouter, HTTPException, status, Query, Body
 from typing import List, Optional, Dict, Any
 import uuid
 from sqlalchemy import select
 from datetime import date as dt_date, datetime, time, timedelta
 from pydantic import BaseModel, Field
+import json
 
 from api.deps import DbSession
 from models.recommendation import Template, TemplateDay
@@ -48,6 +49,46 @@ class TravelItinerary(BaseModel):
     nights: int = Field(..., ge=1, description="Number of nights")
     meta: ItineraryMeta = Field(..., description="Additional metadata")
     days: List[DayItinerary] = Field(..., description="Daily itinerary details")
+
+class ItineraryDataRequest(BaseModel):
+    """Request body for converting itinerary data to proper JSON string"""
+    data: Dict[str, Any] = Field(..., description="Itinerary data as dictionary")
+    for_claude: bool = Field(False, description="Format response specifically for Claude consumption")
+
+@router.post(
+    "/format-itinerary-json",
+    response_model=Dict[str, Any],
+    operation_id="format_itinerary_json", 
+    summary="Format Itinerary as JSON String",
+    description="Converts an itinerary data dictionary to a properly formatted JSON string for use with MCP tools",
+)
+async def format_itinerary_json(
+    request: ItineraryDataRequest = Body(...)
+):
+    """
+    Converts an itinerary data dictionary to a properly formatted JSON string.
+    This ensures the JSON string is properly formatted for MCP tools that expect string input.
+    """
+    try:
+        # Convert the data to a JSON string
+        json_string = json.dumps(request.data)
+        
+        # If the response is for Claude, add usage examples
+        if request.for_claude:
+            return {
+                "json_string": json_string,
+                "usage_example": f"To create this itinerary, use:\n\n```python\nresult = await create_custom_itinerary('{json_string}')\n```",
+                "note": "The JSON string above is already properly formatted and can be passed directly to the create_custom_itinerary tool."
+            }
+        else:
+            return {"json_string": json_string}
+            
+    except Exception as e:
+        logger.error(f"Error formatting itinerary JSON: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Error formatting JSON: {str(e)}"
+        )
 
 @router.get(
     "/templates-by-nights",
