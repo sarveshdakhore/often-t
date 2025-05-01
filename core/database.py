@@ -21,7 +21,9 @@ async_session_maker = AsyncSessionLocal
 # Base class for declarative models
 Base = declarative_base()
 
-async def get_db_session() -> AsyncSession:
+from typing import AsyncGenerator
+
+async def get_db_session() -> AsyncGenerator[AsyncSession, None]:
     """Dependency to get a database session."""
     async with AsyncSessionLocal() as session:
         yield session

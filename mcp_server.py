@@ -2,14 +2,14 @@ from typing import Any, Optional, List, Dict
 import httpx
 from mcp.server.fastmcp import FastMCP
 import uuid
-from datetime import date, time
+from datetime import date, time, datetime, timedelta
 import logging
 import json
 
 from sqlalchemy import select
 from schemas.itinerary import ItineraryCreate, ItineraryReadWithDetails, ItineraryRead
 from schemas.catalogue import LocationResponse, ActivityResponse, HotelResponse
-from models import Destination, Location, Activity, Hotel, TransportMode
+from models import Destination, Location, Activity, Hotel, TransportMode, Template, TemplateDay
 from services.recommender import pick_template
 from core.database import get_db_session
 from services.materialiser import materialise_template
@@ -442,6 +442,63 @@ async def get_recommended_itinerary(
         except Exception as e:
             logger.exception("MCP: Error processing recommendation request.")
             raise ValueError(f"Error getting recommendation: {e}")
+
+@mcp.tool()
+async def get_template_as_itinerary(
+    nights: int,
+    start_date_str: Optional[str] = None
+) -> Dict[str, Any]:
+    """
+    Retrieves a template matching the specified number of nights and returns it in itinerary format
+    by calling the templates-by-nights endpoint.
+    
+    **IMPORTANT INTERACTION GUIDELINES FOR CLAUDE:**
+    1. Use this to quickly preview an itinerary structure based on a template
+    2. This provides a complete itinerary structure with all days, hotels, activities and transfers
+    3. If the user likes the structure, you can use `get_recommended_itinerary` to materialize it
+    
+    Args:
+        nights: Number of nights for the trip (e.g., 3)
+        start_date_str: Optional start date in YYYY-MM-DD format (defaults to today if not provided)
+    
+    Returns:
+        A dictionary containing the complete itinerary structure, including days, hotels, activities, and transfers.
+        Returns an empty dictionary if no suitable template is found.
+    """
+    logger.info(f"MCP: Retrieving template for {nights} nights as itinerary format")
+    
+    try:
+        # Prepare the API request URL with query parameters
+        api_url = f"http://localhost:8000/api/v1/recommended-itineraries/templates-by-nights?nights={nights}"
+        
+        # Add optional start date if provided
+        if start_date_str:
+            api_url += f"&start_date_str={start_date_str}"
+        
+        # Make the GET request to the API endpoint
+        async with httpx.AsyncClient() as client:
+            response = await client.get(
+                api_url,
+                timeout=30.0  # Set an appropriate timeout
+            )
+            
+            # Check if the request was successful
+            if response.status_code == 200:
+                logger.info(f"MCP: Successfully retrieved template as itinerary")
+                return response.json()
+            else:
+                logger.error(f"MCP: API returned error {response.status_code}: {response.text}")
+                return {
+                    "error": f"API error ({response.status_code}): {response.text}",
+                    "details": response.json() if response.headers.get("content-type") == "application/json" else None
+                }
+                
+    except httpx.RequestError as e:
+        logger.error(f"MCP: HTTP request error: {e}")
+        return {"error": f"Failed to connect to API: {e}"}
+    except Exception as e:
+        logger.error(f"MCP: Error retrieving template as itinerary: {e}", exc_info=True)
+        return {"error": f"Failed to retrieve template as itinerary: {str(e)}"}
 
 if __name__ == "__main__":
     mcp.run(transport='stdio')
