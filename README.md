@@ -74,7 +74,24 @@ nano ~/Library/Application\ Support/Claude/claude_desktop_config.json
 }
 ```
 
-If needed, use the full path to the uv executable (find it using `which uv`).
+If needed, use the full path to the uv executable (find it using `which uv`). If Claude throws an error with the above configuration, modify it to use the full path:
+
+```json
+{
+    "mcpServers": {
+        "often": {
+            "command": "/Users/sarveshdakhore/.local/bin/uv",
+            "args": [
+                "--directory",
+                "/Users/sarveshdakhore/Desktop/often-t",
+                "run",
+                "python",
+                "mcp_server.py"
+            ]
+        }
+    }
+}
+```
 
 4. Save the configuration file and restart Claude for Desktop.
 
@@ -115,12 +132,16 @@ If the hammer icon doesn't appear or tools aren't working:
 1. Check that the configuration file has the correct paths
 2. Verify that all dependencies are installed
 3. Look for error messages in Claude for Desktop
-4. Try running the server manually to check for errors:
+4. If Claude can't find the `uv` command, update your configuration to use the full path:
+   ```json
+   "command": "/Users/sarveshdakhore/.local/bin/uv"
+   ```
+5. Try running the server manually to check for errors:
    ```bash
    cd /Users/sarveshdakhore/Desktop/often-t
-   uv run python mcp_server.py
+   /Users/sarveshdakhore/.local/bin/uv run python mcp_server.py
    ```
-5. Ensure the database and any external APIs your server relies on are accessible
+6. Ensure the database and any external APIs your server relies on are accessible
 
 ## Database Configuration
 
