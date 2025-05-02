@@ -44,6 +44,18 @@ source .venv/bin/activate
    uv pip install -r requirements.txt
    ```
 
+## Environment Variables
+
+The project uses a `.env` file to store configuration settings. Make sure to configure these variables properly:
+
+- `DATABASE_URL`: PostgreSQL connection string for the application database
+  - Example format: `postgresql+asyncpg://<username>:<password>@<host>:<port>/<dbname>`
+
+- `REDIS_URL`: Redis connection string for caching and session management
+  - Example format: `redis://<host>:<port>/<db_number>`
+
+Ensure these are properly configured before running the server.
+
 ## Configure Claude for Desktop
 
 1. Make sure you have Claude for Desktop installed. If not, download and install the latest version.
