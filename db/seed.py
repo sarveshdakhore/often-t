@@ -6,9 +6,10 @@ from sqlalchemy import func
 from ..models.catalogue import (
     Destination, Location, Hotel, Activity, TransportMode, TransportModeEnum
 )
-from ..models.itinerary import (
-    Template, TemplateDay, DayActivity, DayTransfer, DayHotel
+from models.transactional import (
+     DayActivity, DayTransfer, DayHotel
 )
+from models.recommendation import Template, TemplateDay
 
 def seed_data(db: Session):
     # Check if data already exists to avoid duplicates
