@@ -225,6 +225,7 @@ async def create_custom_itinerary(
            - Scuba Diving (3 hours, 5000-7000 INR)
          * Culture:
            - Temple Tour (4 hours, 1500-2500 INR)"
+           The above activities are just examples. Use the actual data from the database for duration of an activity
     4. ALLOW THE USER TO CHOOSE from these actual options rather than guessing or making up activities
     5. If creating a multi-day itinerary, ask about EACH DAY separately to avoid overwhelming the user
 
@@ -233,7 +234,7 @@ async def create_custom_itinerary(
     2. **Gather IDs:**
         - For a fully custom plan: Use `get_destinations`, `get_locations_by_destination`, `get_hotels_by_location`, `get_activities_by_location`, `get_transport_modes` sequentially to gather all necessary Destination, Location, Hotel, Activity, and Transport Mode IDs based on user preferences.
         - If modifying a recommendation: You might already have some details from the `get_recommended_itinerary` output. Use the fetching tools to find IDs for any *new* items the user wants to add or change.
-    3. **Construct JSON:** Carefully build the JSON payload string using the exact UUIDs obtained. The structure must precisely match the example below. **Consider activity durations** (available via `get_activities_by_location`) and typical travel times to ensure the schedule for each day is realistic (e.g., allow ~6-8 hours for sleep, don't exceed ~16-18 hours of scheduled activities/transfers per day).
+    3. **Construct JSON:** Carefully build the JSON payload string using the exact UUIDs obtained. The structure must precisely match the example below. **Consider activity durations** (available via `get_activities_by_location`) and typical travel times to ensure the schedule for each day is realistic. **DO NOT EXCEED 17 HOURS of total scheduled activities/transfers per day** to allow for 7 hours of sleep. Be mindful of activity durations, travel times between locations, and include appropriate breaks.
     4. **Execute:** Call this tool (`create_custom_itinerary`) with the complete, valid JSON string.
 
     **Important:** Always use the fetching tools to get correct, current UUIDs. Do not guess IDs.
